@@ -56,7 +56,7 @@
 		user.adjustStaminaLoss(10)
 
 	if(!HAS_TRAIT(user, TRAIT_MIMING))
-		playsound(user, user.gender == MALE ? 'modules/code/jump/sounds/jump_male.ogg' : 'modules/code/jump/sounds/jump_female.ogg', 25, 0, 1)
+		playsound(user, user.gender == MALE ? 'modules/sound/jump/jump_male.ogg' : 'modules/sound/jump/jump_female.ogg', 25, 0, 1)
 	user.visible_message("<span class='danger'>[user] jumps.</span>", \
 					"<span class='warning'> I jump at the [loc]!</span>")
 	if(HAS_TRAIT(user, TRAIT_JUMPER))

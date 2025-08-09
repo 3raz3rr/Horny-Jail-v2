@@ -1,7 +1,7 @@
 // Hairstyles
 
 /datum/sprite_accessory/hair/nova
-	icon = 'modules/code/customization/icons/hair.dmi'
+	icon = 'modules/icons/customization/hair.dmi'
 
 /datum/sprite_accessory/hair/nova/pigtails4
 	name = "Pigtails 4"
@@ -397,22 +397,22 @@
 
 /datum/sprite_accessory/hair/nova/halfshavedlong
 	name = "Half-shaved long"
-	icon = 'modules/code/customization/icons/more_hair.dmi'
+	icon = 'modules/icons/customization/more_hair.dmi'
 	icon_state = "halfshave_long"
 
 /datum/sprite_accessory/hair/nova/halfshavedmessy
 	name = "Half-shaved messy"
-	icon = 'modules/code/customization/icons/more_hair.dmi'
+	icon = 'modules/icons/customization/more_hair.dmi'
 	icon_state = "halfshave_messy"
 
 /datum/sprite_accessory/hair/nova/halfshavedmessylong
 	name = "Half-shave long messy"
-	icon = 'modules/code/customization/icons/more_hair.dmi'
+	icon = 'modules/icons/customization/more_hair.dmi'
 	icon_state = "halfshave_messylong"
 
 /datum/sprite_accessory/hair/nova/halfshavedglamorous
 	name = "Half-shave glamorous"
-	icon = 'modules/code/customization/icons/more_hair.dmi'
+	icon = 'modules/icons/customization/more_hair.dmi'
 	icon_state = "halfshave_glamorous"
 
 /datum/sprite_accessory/hair/nova/emoshort
@@ -694,7 +694,7 @@
 // Facial hair
 
 /datum/sprite_accessory/facial_hair/nova
-	icon = 'modules/code/customization/icons/facialhair.dmi'
+	icon = 'modules/icons/customization/facialhair.dmi'
 
 /datum/sprite_accessory/facial_hair/nova/sideburns
 	name = "Sideburns"

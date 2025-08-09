@@ -1,6 +1,6 @@
 /datum/sprite_accessory/ears/acrador/long
 	name = "Acrador (Long)"
-	icon = 'modules/code/customization/icons/ears_big.dmi'
+	icon = 'modules/icons/customization/ears_big.dmi'
 	icon_state = "acrador_long"
 
 /datum/sprite_accessory/ears/acrador/long/alt_1
@@ -21,7 +21,7 @@
 
 /datum/sprite_accessory/ears/acrador/short
 	name = "Acrador (Short)"
-	icon = 'modules/code/customization/icons/ears_big.dmi'
+	icon = 'modules/icons/customization/ears_big.dmi'
 	icon_state = "acrador_short"
 
 /datum/sprite_accessory/ears/acrador/short/alt_1
@@ -42,10 +42,10 @@
 
 /datum/sprite_accessory/ears/mouse
 	name = "Mouse (Alt)"
-	icon = 'modules/code/customization/icons/ears.dmi'
+	icon = 'modules/icons/customization/ears.dmi'
 	icon_state = "mouse"
 
 /datum/sprite_accessory/ears/mutant/vulp
 	name = "Vulp"
 	icon_state = "vulp"
-	icon = 'modules/code/customization/icons/ears.dmi'
+	icon = 'modules/icons/customization/ears.dmi'

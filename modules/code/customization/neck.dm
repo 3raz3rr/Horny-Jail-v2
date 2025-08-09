@@ -1,7 +1,7 @@
 /datum/sprite_accessory/fluff/moth/acradors
 	name = "Neckfluff (Acradors 1)"
 	icon_state = "neckfluff_acradors_1"
-	icon = 'modules/code/customization/icons/neck_large.dmi'
+	icon = 'modules/icons/customization/neck_large.dmi'
 	color_src = USE_ONE_COLOR
 	relevent_layers = list(BODY_ADJ_LAYER, BODY_FRONT_LAYER)
 

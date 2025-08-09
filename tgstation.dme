@@ -10355,5 +10355,7 @@
 #include "modules\code\customization\tails.dm"
 #include "modules\code\customization\taur_types.dm"
 #include "modules\code\datums\world_topic.dm"
+#include "modules\code\flavor\loadout_items.dm"
+#include "modules\code\flavor\plushes.dm"
 #include "modules\code\jump\jump.dm"
 // END_INCLUDE
