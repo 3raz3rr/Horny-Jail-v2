@@ -119,7 +119,7 @@
 	volume = 50
 	custom_price = PAYCHECK_CREW * 0.9
 
-/obj/item/reagent_containers/cup/glass/bottle/smash(mob/living/target, mob/thrower, datum/thrownthing/throwingdatum, break_top)
+/obj/item/reagent_containers/cup/glass/bottle/smash(atom/target, mob/thrower, datum/thrownthing/throwingdatum, break_top)
 	if(bartender_check(target, thrower) && throwingdatum)
 		return
 	SplashReagents(target, throwingdatum, override_spillable = TRUE)
