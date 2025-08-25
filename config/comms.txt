@@ -14,3 +14,8 @@
 ## Servers that do not match this network-name will have their messages discarded.
 ## Leaving this commented will allow all messages through, regardless of network.
 #CROSS_COMMS_NETWORK default_network
+
+## Optional bot upload configuration
+#BOT_IP 127.0.0.1
+#BOT_PORT 8080
+#BOT_FILE config/example.txt
