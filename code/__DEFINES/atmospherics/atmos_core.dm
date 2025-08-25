@@ -175,6 +175,8 @@
 #define MAKE_ACTIVE 2
 ///Disable excited group
 #define KILL_EXCITED 3
+//SPECIAL DEFINES FOR ATMOS TO ASYNC PROCESSING
+#define ATMOS_MIX_ASYNC "_ØFa"
 
 /// How many maximum iterations do we allow the Newton-Raphson approximation for gas pressure to do.
 #define ATMOS_PRESSURE_APPROXIMATION_ITERATIONS 20

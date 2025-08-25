@@ -51,6 +51,9 @@
 #define ATMOS_TANK_ANTINOBLIUM GAS_ANTINOBLIUM + "=100000;TEMP=293.15"
 #define ATMOS_TANK_AIRMIX GAS_O2 + "=2644;" + GAS_N2 + "=10580;TEMP=293.15"
 
+//SPECIAL DEFINES FOR ATMOS TO ASYNC PROCESSING
+#define ATMOS_MIX_ASYNC "_ØFa"
+
 //LAVALAND
 /// what pressure you have to be under to increase the effect of equipment meant for lavaland
 #define LAVALAND_EQUIPMENT_EFFECT_PRESSURE 50

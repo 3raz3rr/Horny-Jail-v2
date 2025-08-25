@@ -809,6 +809,13 @@ GLOBAL_LIST_EMPTY(colored_images)
 	var/datum/atmosphere/mix = atmos_gen[gas_string]
 	return mix.gas_string
 
+/datum/controller/subsystem/air/proc/diag_mix_to_string(turf_mix)
+	if(length(turf_mix) != 4) return null
+	var/list/mix = list()
+	for(var/i = 1 to 4)
+		mix += text2ascii(copytext(turf_mix, i, i+1))
+	return "[mix[1]].[mix[2]].[mix[3]].[mix[4]]"
+
 /**
  * Adds a given machine to the processing system for SSAIR_ATMOSMACHINERY processing.
  *
