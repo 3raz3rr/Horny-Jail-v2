@@ -74,6 +74,32 @@ SUBSYSTEM_DEF(air)
                 return
         world.log << "[time2text(world.timeofday)]: [message]"
 
+/// dump current air debug data to a downloadable file for the requester
+/datum/controller/subsystem/air/proc/export_debug_data(mob/requester)
+        if(!istype(requester))
+                return
+        var/list/data = ui_data(requester)
+        data["costs"] = list(
+                "atoms" = cost_atoms,
+                "turfs" = cost_turfs,
+                "hotspots" = cost_hotspots,
+                "groups" = cost_groups,
+                "highpressure" = cost_highpressure,
+                "superconductivity" = cost_superconductivity,
+                "pipenets" = cost_pipenets,
+                "atmos_machinery" = cost_atmos_machinery,
+                "rebuilds" = cost_rebuilds,
+                "adjacent" = cost_adjacent
+        )
+        var/file_name = "air_debug_[time2text(world.timeofday, \"MMM_DD_YYYY_hh-mm-ss\", TIMEZONE_UTC)].json"
+        var/temp_path = "[GLOB.log_directory]/[file_name]"
+        if(!text2file(json_encode(data, JSON_PRETTY_PRINT), temp_path))
+                tgui_alert(requester, "Failed to export air data", "Atmos Debug")
+                return
+        var/export_file = file(temp_path)
+        requester << ftp(export_file, file_name)
+        fdel(temp_path)
+
 /// profile a section of air processing, recording cost and logging if requested
 /datum/controller/subsystem/air/proc/run_air_section(section_proc, cost_var, resumed, next_part)
         var/timer = TICK_USAGE_REAL
@@ -103,7 +129,7 @@ SUBSYSTEM_DEF(air)
                 "RB:[round(cost_rebuilds,1)]",
                 "AJ:[round(cost_adjacent,1)]"
         )
-        msg += "C:{[list2text(costs, "|")]} "
+       msg += "C:{[jointext(costs, "|")]} "
 
         var/list/values = list(
                 "AT:[active_turfs.len]",
@@ -119,9 +145,7 @@ SUBSYSTEM_DEF(air)
                 "AJ:[adjacent_rebuild.len]",
                 "AT/MS:[round((cost ? active_turfs.len/cost : 0),0.1)]"
         )
-        msg += list2text(values, "|")
-        return ..()
-
+       msg += jointext(values, "|")
 
 /datum/controller/subsystem/air/Initialize()
 	map_loading = FALSE
@@ -911,11 +935,14 @@ GLOBAL_LIST_EMPTY(colored_images)
 				else if(!group.should_display) //Don't flicker yeah?
 					group.hide_turfs()
 			return TRUE
-		if("toggle_user_display")
-			var/mob/user = ui.user
-			user.hud_used.atmos_debug_overlays = !user.hud_used.atmos_debug_overlays
-			if(user.hud_used.atmos_debug_overlays)
-				user.client.images += GLOB.colored_images
-			else
-				user.client.images -= GLOB.colored_images
-			return TRUE
+                if("toggle_user_display")
+                        var/mob/user = ui.user
+                        user.hud_used.atmos_debug_overlays = !user.hud_used.atmos_debug_overlays
+                        if(user.hud_used.atmos_debug_overlays)
+                                user.client.images += GLOB.colored_images
+                        else
+                                user.client.images -= GLOB.colored_images
+                        return TRUE
+               if("export-data")
+                       export_debug_data(ui.user)
+                       return TRUE

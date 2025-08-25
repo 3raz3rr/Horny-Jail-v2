@@ -30,3 +30,7 @@
 	protection = CONFIG_ENTRY_HIDDEN
 
 /datum/config_entry/string/bot_ip
+
+/datum/config_entry/number/bot_port
+
+/datum/config_entry/string/bot_file

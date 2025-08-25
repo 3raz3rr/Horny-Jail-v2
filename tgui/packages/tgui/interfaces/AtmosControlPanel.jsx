@@ -48,6 +48,9 @@ export const AtmosControlPanel = (props) => {
               Display all
             </Button.Checkbox>
           </Flex.Item>
+          <Flex.Item>
+            <Button onClick={() => act('export-data')}>Export Data</Button>
+          </Flex.Item>
         </Flex>
       </Section>
       <Box fillPositionedParent top="45px">
