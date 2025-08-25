@@ -121,7 +121,6 @@ SUBSYSTEM_DEF(air)
         var/export_file = file(temp_path)
         requester << ftp(export_file, file_name)
         fdel(temp_path)
-
 /// profile a section of air processing, recording cost and logging if requested
 /datum/controller/subsystem/air/proc/run_air_section(section_proc, cost_var, resumed, next_part)
         var/timer = TICK_USAGE_REAL
@@ -169,7 +168,6 @@ SUBSYSTEM_DEF(air)
         )
        msg += jointext(values, "|")
         return ..()
-
 
 /datum/controller/subsystem/air/Initialize()
 	map_loading = FALSE
