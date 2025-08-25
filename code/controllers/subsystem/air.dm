@@ -55,39 +55,72 @@ SUBSYSTEM_DEF(air)
 	var/currentpart = SSAIR_PIPENETS
 
 	var/map_loading = TRUE
-	var/list/queued_for_activation
-	var/display_all_groups = FALSE
+        var/list/queued_for_activation
+        var/display_all_groups = FALSE
 
-	var/list/reaction_handbook
-	var/list/gas_handbook
+        var/list/reaction_handbook
+        var/list/gas_handbook
+
+        /// toggles verbose debugging information for the air subsystem
+        var/debug_enabled = FALSE
+
+/datum/controller/subsystem/air/proc/toggle_debug()
+        debug_enabled = !debug_enabled
+        debug_log("debug mode [debug_enabled ? "enabled" : "disabled"]")
+
+/// utility wrapper for conditional logging
+/datum/controller/subsystem/air/proc/debug_log(message)
+        if(!debug_enabled)
+                return
+        world.log << "[time2text(world.timeofday)]: [message]"
+
+/// profile a section of air processing, recording cost and logging if requested
+/datum/controller/subsystem/air/proc/run_air_section(section_proc, cost_var, resumed, next_part)
+        var/timer = TICK_USAGE_REAL
+        if(!resumed)
+                cached_cost = 0
+        call(src, section_proc)(resumed)
+        cached_cost += TICK_USAGE_REAL - timer
+        if(state != SS_RUNNING)
+                return TRUE
+        var/ms = TICK_DELTA_TO_MS(cached_cost)
+        vars[cost_var] = MC_AVERAGE(vars[cost_var], ms)
+        debug_log("[cost_var] section took [ms]ms")
+        currentpart = next_part
+        return FALSE
 
 
 /datum/controller/subsystem/air/stat_entry(msg)
-	msg += "C:{"
-	msg += "AT:[round(cost_turfs,1)]|"
-	msg += "HS:[round(cost_hotspots,1)]|"
-	msg += "EG:[round(cost_groups,1)]|"
-	msg += "HP:[round(cost_highpressure,1)]|"
-	msg += "SC:[round(cost_superconductivity,1)]|"
-	msg += "PN:[round(cost_pipenets,1)]|"
-	msg += "AM:[round(cost_atmos_machinery,1)]|"
-	msg += "AO:[round(cost_atoms, 1)]|"
-	msg += "RB:[round(cost_rebuilds,1)]|"
-	msg += "AJ:[round(cost_adjacent,1)]|"
-	msg += "} "
-	msg += "AT:[active_turfs.len]|"
-	msg += "HS:[hotspots.len]|"
-	msg += "EG:[excited_groups.len]|"
-	msg += "HP:[high_pressure_delta.len]|"
-	msg += "SC:[active_super_conductivity.len]|"
-	msg += "PN:[networks.len]|"
-	msg += "AM:[atmos_machinery.len]|"
-	msg += "AO:[atom_process.len]|"
-	msg += "RB:[rebuild_queue.len]|"
-	msg += "EP:[expansion_queue.len]|"
-	msg += "AJ:[adjacent_rebuild.len]|"
-	msg += "AT/MS:[round((cost ? active_turfs.len/cost : 0),0.1)]"
-	return ..()
+        var/list/costs = list(
+                "AT:[round(cost_turfs,1)]",
+                "HS:[round(cost_hotspots,1)]",
+                "EG:[round(cost_groups,1)]",
+                "HP:[round(cost_highpressure,1)]",
+                "SC:[round(cost_superconductivity,1)]",
+                "PN:[round(cost_pipenets,1)]",
+                "AM:[round(cost_atmos_machinery,1)]",
+                "AO:[round(cost_atoms,1)]",
+                "RB:[round(cost_rebuilds,1)]",
+                "AJ:[round(cost_adjacent,1)]"
+        )
+       msg += "C:{[jointext(costs, "|")]} "
+
+        var/list/values = list(
+                "AT:[active_turfs.len]",
+                "HS:[hotspots.len]",
+                "EG:[excited_groups.len]",
+                "HP:[high_pressure_delta.len]",
+                "SC:[active_super_conductivity.len]",
+                "PN:[networks.len]",
+                "AM:[atmos_machinery.len]",
+                "AO:[atom_process.len]",
+                "RB:[rebuild_queue.len]",
+                "EP:[expansion_queue.len]",
+                "AJ:[adjacent_rebuild.len]",
+                "AT/MS:[round((cost ? active_turfs.len/cost : 0),0.1)]"
+        )
+       msg += jointext(values, "|")
+        return ..()
 
 
 /datum/controller/subsystem/air/Initialize()
@@ -116,9 +149,10 @@ SUBSYSTEM_DEF(air)
 		timer = TICK_USAGE_REAL
 		process_adjacent_rebuild()
 		//This does mean that the apperent rebuild costs fluctuate very quickly, this is just the cost of having them always process, no matter what
-		cost_adjacent = TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
+                cost_adjacent = TICK_USAGE_REAL - timer
+                debug_log("adjacent rebuild cost [cost_adjacent]")
+                if(state != SS_RUNNING)
+                        return
 
 	// Every time we fire, we want to make sure pipenets are rebuilt. The game state could have changed between each fire() proc call
 	// and anything missing a pipenet can lead to unintended behaviour at worse and various runtimes at best.
@@ -126,104 +160,50 @@ SUBSYSTEM_DEF(air)
 		timer = TICK_USAGE_REAL
 		process_rebuilds()
 		//This does mean that the apperent rebuild costs fluctuate very quickly, this is just the cost of having them always process, no matter what
-		cost_rebuilds = TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
+                cost_rebuilds = TICK_USAGE_REAL - timer
+                debug_log("rebuild cost [cost_rebuilds]")
+                if(state != SS_RUNNING)
+                        return
 
-	if(currentpart == SSAIR_PIPENETS || !resumed)
-		timer = TICK_USAGE_REAL
-		if(!resumed)
-			cached_cost = 0
-		process_pipenets(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
-		cost_pipenets = MC_AVERAGE(cost_pipenets, TICK_DELTA_TO_MS(cached_cost))
-		resumed = FALSE
-		currentpart = SSAIR_ATMOSMACHINERY
+        if(currentpart == SSAIR_PIPENETS || !resumed)
+                if(run_air_section(/datum/controller/subsystem/air/proc/process_pipenets, "cost_pipenets", resumed, SSAIR_ATMOSMACHINERY))
+                        return
+                resumed = FALSE
 
-	if(currentpart == SSAIR_ATMOSMACHINERY)
-		timer = TICK_USAGE_REAL
-		if(!resumed)
-			cached_cost = 0
-		process_atmos_machinery(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
-		cost_atmos_machinery = MC_AVERAGE(cost_atmos_machinery, TICK_DELTA_TO_MS(cached_cost))
-		resumed = FALSE
-		currentpart = SSAIR_ACTIVETURFS
+        if(currentpart == SSAIR_ATMOSMACHINERY)
+                if(run_air_section(/datum/controller/subsystem/air/proc/process_atmos_machinery, "cost_atmos_machinery", resumed, SSAIR_ACTIVETURFS))
+                        return
+                resumed = FALSE
 
-	if(currentpart == SSAIR_ACTIVETURFS)
-		timer = TICK_USAGE_REAL
-		if(!resumed)
-			cached_cost = 0
-		process_active_turfs(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
-		cost_turfs = MC_AVERAGE(cost_turfs, TICK_DELTA_TO_MS(cached_cost))
-		resumed = FALSE
-		currentpart = SSAIR_HOTSPOTS
+        if(currentpart == SSAIR_ACTIVETURFS)
+                if(run_air_section(/datum/controller/subsystem/air/proc/process_active_turfs, "cost_turfs", resumed, SSAIR_HOTSPOTS))
+                        return
+                resumed = FALSE
 
-	if(currentpart == SSAIR_HOTSPOTS) //We do this before excited groups to allow breakdowns to be independent of adding turfs while still *mostly preventing mass fires
-		timer = TICK_USAGE_REAL
-		if(!resumed)
-			cached_cost = 0
-		process_hotspots(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
-		cost_hotspots = MC_AVERAGE(cost_hotspots, TICK_DELTA_TO_MS(cached_cost))
-		resumed = FALSE
-		currentpart = SSAIR_EXCITEDGROUPS
+        if(currentpart == SSAIR_HOTSPOTS) //We do this before excited groups to allow breakdowns to be independent of adding turfs while still *mostly preventing mass fires
+                if(run_air_section(/datum/controller/subsystem/air/proc/process_hotspots, "cost_hotspots", resumed, SSAIR_EXCITEDGROUPS))
+                        return
+                resumed = FALSE
 
-	if(currentpart == SSAIR_EXCITEDGROUPS)
-		timer = TICK_USAGE_REAL
-		if(!resumed)
-			cached_cost = 0
-		process_excited_groups(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
-		cost_groups = MC_AVERAGE(cost_groups, TICK_DELTA_TO_MS(cached_cost))
-		resumed = FALSE
-		currentpart = SSAIR_HIGHPRESSURE
+        if(currentpart == SSAIR_EXCITEDGROUPS)
+                if(run_air_section(/datum/controller/subsystem/air/proc/process_excited_groups, "cost_groups", resumed, SSAIR_HIGHPRESSURE))
+                        return
+                resumed = FALSE
 
-	if(currentpart == SSAIR_HIGHPRESSURE)
-		timer = TICK_USAGE_REAL
-		if(!resumed)
-			cached_cost = 0
-		process_high_pressure_delta(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
-		cost_highpressure = MC_AVERAGE(cost_highpressure, TICK_DELTA_TO_MS(cached_cost))
-		resumed = FALSE
-		currentpart = SSAIR_SUPERCONDUCTIVITY
+        if(currentpart == SSAIR_HIGHPRESSURE)
+                if(run_air_section(/datum/controller/subsystem/air/proc/process_high_pressure_delta, "cost_highpressure", resumed, SSAIR_SUPERCONDUCTIVITY))
+                        return
+                resumed = FALSE
 
-	if(currentpart == SSAIR_SUPERCONDUCTIVITY)
-		timer = TICK_USAGE_REAL
-		if(!resumed)
-			cached_cost = 0
-		process_super_conductivity(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
-		cost_superconductivity = MC_AVERAGE(cost_superconductivity, TICK_DELTA_TO_MS(cached_cost))
-		resumed = FALSE
-		currentpart = SSAIR_PROCESS_ATOMS
+        if(currentpart == SSAIR_SUPERCONDUCTIVITY)
+                if(run_air_section(/datum/controller/subsystem/air/proc/process_super_conductivity, "cost_superconductivity", resumed, SSAIR_PROCESS_ATOMS))
+                        return
+                resumed = FALSE
 
-	if(currentpart == SSAIR_PROCESS_ATOMS)
-		timer = TICK_USAGE_REAL
-		if(!resumed)
-			cached_cost = 0
-		process_atoms(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
-		if(state != SS_RUNNING)
-			return
-		cost_atoms = MC_AVERAGE(cost_atoms, TICK_DELTA_TO_MS(cached_cost))
-		resumed = FALSE
+        if(currentpart == SSAIR_PROCESS_ATOMS)
+                if(run_air_section(/datum/controller/subsystem/air/proc/process_atoms, "cost_atoms", resumed, SSAIR_PIPENETS))
+                        return
+                resumed = FALSE
 
 
 	currentpart = SSAIR_PIPENETS
@@ -269,19 +249,19 @@ SUBSYSTEM_DEF(air)
 				break
 
 /datum/controller/subsystem/air/proc/process_pipenets(resumed = FALSE)
-	if (!resumed)
-		src.currentrun = networks.Copy()
-	//cache for sanic speed (lists are references anyways)
-	var/list/currentrun = src.currentrun
-	while(currentrun.len)
-		var/datum/thing = currentrun[currentrun.len]
-		currentrun.len--
-		if(thing)
-			thing.process()
-		else
-			networks.Remove(thing)
-		if(MC_TICK_CHECK)
-			return
+        if (!resumed)
+                src.currentrun = networks.Copy()
+        //cache for sanic speed (lists are references anyways)
+        var/list/currentrun = src.currentrun
+        for(var/i = currentrun.len, i > 0, i--)
+                var/datum/thing = currentrun[i]
+                currentrun.len = i - 1
+                if(thing)
+                        thing.process()
+                else
+                        networks.Remove(thing)
+                if(MC_TICK_CHECK)
+                        return
 
 /datum/controller/subsystem/air/proc/add_to_rebuild_queue(obj/machinery/atmospherics/atmos_machine)
 	if(istype(atmos_machine, /obj/machinery/atmospherics) && !atmos_machine.rebuilding)
@@ -301,103 +281,105 @@ SUBSYSTEM_DEF(air)
 			return
 
 /datum/controller/subsystem/air/proc/process_atoms(resumed = FALSE)
-	if(!resumed)
-		src.currentrun = atom_process.Copy()
-	//cache for sanic speed (lists are references anyways)
-	var/list/currentrun = src.currentrun
-	while(currentrun.len)
-		var/atom/talk_to = currentrun[currentrun.len]
-		currentrun.len--
-		if(!talk_to)
-			return
-		talk_to.process_exposure()
-		if(MC_TICK_CHECK)
-			return
+        if(!resumed)
+                src.currentrun = atom_process.Copy()
+        //cache for sanic speed (lists are references anyways)
+        var/list/currentrun = src.currentrun
+        for(var/i = currentrun.len, i > 0, i--)
+                var/atom/talk_to = currentrun[i]
+                currentrun.len = i - 1
+                if(!talk_to)
+                        return
+                talk_to.process_exposure()
+                if(MC_TICK_CHECK)
+                        return
 
 /datum/controller/subsystem/air/proc/process_atmos_machinery(resumed = FALSE)
-	if (!resumed)
-		src.currentrun = atmos_machinery.Copy()
-	//cache for sanic speed (lists are references anyways)
-	var/list/currentrun = src.currentrun
-	while(currentrun.len)
-		var/obj/machinery/M = currentrun[currentrun.len]
-		currentrun.len--
-		if(!M)
-			atmos_machinery -= M
-		if(M.process_atmos() == PROCESS_KILL)
-			stop_processing_machine(M)
-		if(MC_TICK_CHECK)
-			return
+        if (!resumed)
+                src.currentrun = atmos_machinery.Copy()
+        //cache for sanic speed (lists are references anyways)
+        var/list/currentrun = src.currentrun
+        for(var/i = currentrun.len, i > 0, i--)
+                var/obj/machinery/M = currentrun[i]
+                currentrun.len = i - 1
+                if(!M)
+                        atmos_machinery -= M
+                        continue
+                if(M.process_atmos() == PROCESS_KILL)
+                        stop_processing_machine(M)
+                if(MC_TICK_CHECK)
+                        return
 
 
 /datum/controller/subsystem/air/proc/process_super_conductivity(resumed = FALSE)
-	if (!resumed)
-		src.currentrun = active_super_conductivity.Copy()
-	//cache for sanic speed (lists are references anyways)
-	var/list/currentrun = src.currentrun
-	while(currentrun.len)
-		var/turf/T = currentrun[currentrun.len]
-		currentrun.len--
-		T.super_conduct()
-		if(MC_TICK_CHECK)
-			return
+        if (!resumed)
+                src.currentrun = active_super_conductivity.Copy()
+        //cache for sanic speed (lists are references anyways)
+        var/list/currentrun = src.currentrun
+        for(var/i = currentrun.len, i > 0, i--)
+                var/turf/T = currentrun[i]
+                currentrun.len = i - 1
+                if(T)
+                        T.super_conduct()
+                if(MC_TICK_CHECK)
+                        return
 
 /datum/controller/subsystem/air/proc/process_hotspots(resumed = FALSE)
-	if (!resumed)
-		src.currentrun = hotspots.Copy()
-	//cache for sanic speed (lists are references anyways)
-	var/list/currentrun = src.currentrun
-	while(currentrun.len)
-		var/obj/effect/hotspot/H = currentrun[currentrun.len]
-		currentrun.len--
-		if (H)
-			H.process()
-		else
-			hotspots -= H
-		if(MC_TICK_CHECK)
-			return
+        if (!resumed)
+                src.currentrun = hotspots.Copy()
+        //cache for sanic speed (lists are references anyways)
+        var/list/currentrun = src.currentrun
+        for(var/i = currentrun.len, i > 0, i--)
+                var/obj/effect/hotspot/H = currentrun[i]
+                currentrun.len = i - 1
+                if (H)
+                        H.process()
+                else
+                        hotspots -= H
+                if(MC_TICK_CHECK)
+                        return
 
 /datum/controller/subsystem/air/proc/process_high_pressure_delta(resumed = FALSE)
-	while (high_pressure_delta.len)
-		var/turf/open/T = high_pressure_delta[high_pressure_delta.len]
-		high_pressure_delta.len--
-		T.high_pressure_movements()
-		T.pressure_difference = 0
-		if(MC_TICK_CHECK)
-			return
+        for(var/i = high_pressure_delta.len, i > 0, i--)
+                var/turf/open/T = high_pressure_delta[i]
+                high_pressure_delta.len = i - 1
+                T.high_pressure_movements()
+                T.pressure_difference = 0
+                if(MC_TICK_CHECK)
+                        return
 
 /datum/controller/subsystem/air/proc/process_active_turfs(resumed = FALSE)
-	//cache for sanic speed
-	var/fire_count = times_fired
-	if (!resumed)
-		src.currentrun = active_turfs.Copy()
-	//cache for sanic speed (lists are references anyways)
-	var/list/currentrun = src.currentrun
-	while(currentrun.len)
-		var/turf/open/T = currentrun[currentrun.len]
-		currentrun.len--
-		if (T)
-			T.process_cell(fire_count)
-		if (MC_TICK_CHECK)
-			return
+        //cache for sanic speed
+        var/fire_count = times_fired
+        if (!resumed)
+                src.currentrun = active_turfs.Copy()
+        //cache for sanic speed (lists are references anyways)
+        var/list/currentrun = src.currentrun
+        for(var/i = currentrun.len, i > 0, i--)
+                var/turf/open/T = currentrun[i]
+                currentrun.len = i - 1
+                if (T)
+                        T.process_cell(fire_count)
+                if (MC_TICK_CHECK)
+                        return
 
 /datum/controller/subsystem/air/proc/process_excited_groups(resumed = FALSE)
-	if (!resumed)
-		src.currentrun = excited_groups.Copy()
-	//cache for sanic speed (lists are references anyways)
-	var/list/currentrun = src.currentrun
-	while(currentrun.len)
-		var/datum/excited_group/EG = currentrun[currentrun.len]
-		currentrun.len--
-		EG.breakdown_cooldown++
-		EG.dismantle_cooldown++
-		if(EG.breakdown_cooldown >= EXCITED_GROUP_BREAKDOWN_CYCLES)
-			EG.self_breakdown(poke_turfs = TRUE)
-		else if(EG.dismantle_cooldown >= EXCITED_GROUP_DISMANTLE_CYCLES && !(EG.turf_reactions & (REACTING | STOP_REACTIONS)))
-			EG.dismantle()
-		EG.turf_reactions = NONE
-		if (MC_TICK_CHECK)
-			return
+        if (!resumed)
+                src.currentrun = excited_groups.Copy()
+        //cache for sanic speed (lists are references anyways)
+        var/list/currentrun = src.currentrun
+        for(var/i = currentrun.len, i > 0, i--)
+                var/datum/excited_group/EG = currentrun[i]
+                currentrun.len = i - 1
+                EG.breakdown_cooldown++
+                EG.dismantle_cooldown++
+                if(EG.breakdown_cooldown >= EXCITED_GROUP_BREAKDOWN_CYCLES)
+                        EG.self_breakdown(poke_turfs = TRUE)
+                else if(EG.dismantle_cooldown >= EXCITED_GROUP_DISMANTLE_CYCLES && !(EG.turf_reactions & (REACTING | STOP_REACTIONS)))
+                        EG.dismantle()
+                EG.turf_reactions = NONE
+                if (MC_TICK_CHECK)
+                        return
 
 /datum/controller/subsystem/air/proc/process_rebuilds()
 	//Yes this does mean rebuilding pipenets can freeze up the subsystem forever, but if we're in that situation something else is very wrong
