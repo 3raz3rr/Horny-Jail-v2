@@ -146,8 +146,6 @@ SUBSYSTEM_DEF(air)
                 "AT/MS:[round((cost ? active_turfs.len/cost : 0),0.1)]"
         )
        msg += jointext(values, "|")
-        return ..()
-
 
 /datum/controller/subsystem/air/Initialize()
 	map_loading = FALSE
