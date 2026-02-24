@@ -8,10 +8,10 @@
 	if(goblin_pp >= 5)
 		switch(rand(1,3))
 			if(1)
-				breather.reagents.add_reagent(SSair.chosen_goblin_reagent_medicine, min(goblin_pp*0.25,10))
+				breather.reagents.add_reagent(SSair.chosen_goblin_reagents["medicine"], min(goblin_pp*0.25,10))
 			if(2)
-				breather.reagents.add_reagent(SSair.chosen_goblin_reagent_toxic, min(goblin_pp*0.25,10))
+				breather.reagents.add_reagent(SSair.chosen_goblin_reagents["toxic"], min(goblin_pp*0.25,10))
 			if(3)
-				breather.reagents.add_reagent(SSair.chosen_goblin_reagent_drug, min(goblin_pp*0.25,10))
+				breather.reagents.add_reagent(SSair.chosen_goblin_reagents["drug"], min(goblin_pp*0.25,10))
 
 

@@ -11,16 +11,29 @@ SUBSYSTEM_DEF(air)
 
 	var/cached_cost = 0
 
-	var/cost_atoms = 0
-	var/cost_turfs = 0
-	var/cost_hotspots = 0
-	var/cost_groups = 0
-	var/cost_highpressure = 0
-	var/cost_superconductivity = 0
-	var/cost_pipenets = 0
-	var/cost_atmos_machinery = 0
-	var/cost_rebuilds = 0
-	var/cost_adjacent = 0
+	#define COST_ATOMS "atoms"
+	#define COST_TURFS "turfs"
+	#define COST_HOTSPOTS "hotspots"
+	#define COST_GROUPS "groups"
+	#define COST_HIGHPRESSURE "highpressure"
+	#define COST_SUPERCONDUCTIVITY "superconductivity"
+	#define COST_PIPENETS "pipenets"
+	#define COST_ATMOS_MACHINERY "atmos_machinery"
+	#define COST_REBUILDS "rebuilds"
+	#define COST_ADJACENT "adjacent"
+
+	var/list/processing_cost = list(
+		COST_ATOMS = 0,
+		COST_TURFS = 0,
+		COST_HOTSPOTS = 0,
+		COST_GROUPS = 0,
+		COST_HIGHPRESSURE = 0,
+		COST_SUPERCONDUCTIVITY = 0,
+		COST_PIPENETS = 0,
+		COST_ATMOS_MACHINERY = 0,
+		COST_REBUILDS = 0,
+		COST_ADJACENT = 0,
+	)
 
 	var/list/excited_groups = list()
 	var/list/active_turfs = list()
@@ -60,20 +73,26 @@ SUBSYSTEM_DEF(air)
 
 	var/list/reaction_handbook
 	var/list/gas_handbook
-
+	var/debug_enabled = FALSE // toggle verbose debug logging
+	var/debug_log_file // path to debug log file when debugging is enabled
 
 /datum/controller/subsystem/air/stat_entry(msg)
+	var/list/cost_keys = list(
+		"AT" = COST_TURFS,
+		"HS" = COST_HOTSPOTS,
+		"EG" = COST_GROUPS,
+		"HP" = COST_HIGHPRESSURE,
+		"SC" = COST_SUPERCONDUCTIVITY,
+		"PN" = COST_PIPENETS,
+		"AM" = COST_ATMOS_MACHINERY,
+		"AO" = COST_ATOMS,
+		"RB" = COST_REBUILDS,
+		"AJ" = COST_ADJACENT,
+	)
+
 	msg += "C:{"
-	msg += "AT:[round(cost_turfs,1)]|"
-	msg += "HS:[round(cost_hotspots,1)]|"
-	msg += "EG:[round(cost_groups,1)]|"
-	msg += "HP:[round(cost_highpressure,1)]|"
-	msg += "SC:[round(cost_superconductivity,1)]|"
-	msg += "PN:[round(cost_pipenets,1)]|"
-	msg += "AM:[round(cost_atmos_machinery,1)]|"
-	msg += "AO:[round(cost_atoms, 1)]|"
-	msg += "RB:[round(cost_rebuilds,1)]|"
-	msg += "AJ:[round(cost_adjacent,1)]|"
+	for(var/label in cost_keys)
+		msg += "[label]:[round(processing_cost[cost_keys[label]],1)]|"
 	msg += "} "
 	msg += "AT:[active_turfs.len]|"
 	msg += "HS:[hotspots.len]|"
@@ -92,6 +111,8 @@ SUBSYSTEM_DEF(air)
 
 /datum/controller/subsystem/air/Initialize()
 	map_loading = FALSE
+	debug_log_file = "[GLOB.log_directory]/air_debug.log"
+	fdel(debug_log_file)
 	gas_reactions = init_gas_reactions()
 	hotspot_reactions = init_hotspot_reactions()
 
@@ -101,32 +122,37 @@ SUBSYSTEM_DEF(air)
 	setup_turf_visuals()
 	process_adjacent_rebuild()
 	atmos_handbooks_init()
+	debug_log("Initialization complete")
+	debug_dump_state()
 	return SS_INIT_SUCCESS
 
 
 /datum/controller/subsystem/air/fire(resumed = FALSE)
 	var/timer = TICK_USAGE_REAL
+	debug_log("fire start resumed=[resumed] part=[currentpart]")
 
 	//Rebuilds can happen at any time, so this needs to be done outside of the normal system
-	cost_rebuilds = 0
-	cost_adjacent = 0
+	processing_cost[COST_REBUILDS] = 0
+	processing_cost[COST_ADJACENT] = 0
 
 	// We need to have a solid setup for turfs before fire, otherwise we'll get massive runtimes and strange behavior
-	if(length(adjacent_rebuild))
+	if(adjacent_rebuild.len)
 		timer = TICK_USAGE_REAL
 		process_adjacent_rebuild()
 		//This does mean that the apperent rebuild costs fluctuate very quickly, this is just the cost of having them always process, no matter what
-		cost_adjacent = TICK_USAGE_REAL - timer
+		processing_cost[COST_ADJACENT] = TICK_USAGE_REAL - timer
+		debug_profile("adjacent_rebuild", processing_cost[COST_ADJACENT])
 		if(state != SS_RUNNING)
 			return
 
 	// Every time we fire, we want to make sure pipenets are rebuilt. The game state could have changed between each fire() proc call
 	// and anything missing a pipenet can lead to unintended behaviour at worse and various runtimes at best.
-	if(length(rebuild_queue) || length(expansion_queue))
+	if(rebuild_queue.len || expansion_queue.len)
 		timer = TICK_USAGE_REAL
 		process_rebuilds()
 		//This does mean that the apperent rebuild costs fluctuate very quickly, this is just the cost of having them always process, no matter what
-		cost_rebuilds = TICK_USAGE_REAL - timer
+		processing_cost[COST_REBUILDS] = TICK_USAGE_REAL - timer
+		debug_profile("rebuilds", processing_cost[COST_REBUILDS])
 		if(state != SS_RUNNING)
 			return
 
@@ -134,11 +160,14 @@ SUBSYSTEM_DEF(air)
 		timer = TICK_USAGE_REAL
 		if(!resumed)
 			cached_cost = 0
+		debug_log("Processing pipenets ([networks.len] networks)")
 		process_pipenets(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
+		var/delta = TICK_USAGE_REAL - timer
+		cached_cost += delta
+		debug_profile("pipenets", delta)
 		if(state != SS_RUNNING)
 			return
-		cost_pipenets = MC_AVERAGE(cost_pipenets, TICK_DELTA_TO_MS(cached_cost))
+		processing_cost[COST_PIPENETS] = MC_AVERAGE(processing_cost[COST_PIPENETS], TICK_DELTA_TO_MS(cached_cost))
 		resumed = FALSE
 		currentpart = SSAIR_ATMOSMACHINERY
 
@@ -146,11 +175,14 @@ SUBSYSTEM_DEF(air)
 		timer = TICK_USAGE_REAL
 		if(!resumed)
 			cached_cost = 0
+		debug_log("Processing atmos machinery ([atmos_machinery.len] machines)")
 		process_atmos_machinery(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
+		var/delta = TICK_USAGE_REAL - timer
+		cached_cost += delta
+		debug_profile("atmos_machinery", delta)
 		if(state != SS_RUNNING)
 			return
-		cost_atmos_machinery = MC_AVERAGE(cost_atmos_machinery, TICK_DELTA_TO_MS(cached_cost))
+		processing_cost[COST_ATMOS_MACHINERY] = MC_AVERAGE(processing_cost[COST_ATMOS_MACHINERY], TICK_DELTA_TO_MS(cached_cost))
 		resumed = FALSE
 		currentpart = SSAIR_ACTIVETURFS
 
@@ -158,11 +190,14 @@ SUBSYSTEM_DEF(air)
 		timer = TICK_USAGE_REAL
 		if(!resumed)
 			cached_cost = 0
+		debug_log("Processing active turfs ([active_turfs.len] turfs)")
 		process_active_turfs(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
+		var/delta = TICK_USAGE_REAL - timer
+		cached_cost += delta
+		debug_profile("active_turfs", delta)
 		if(state != SS_RUNNING)
 			return
-		cost_turfs = MC_AVERAGE(cost_turfs, TICK_DELTA_TO_MS(cached_cost))
+		processing_cost[COST_TURFS] = MC_AVERAGE(processing_cost[COST_TURFS], TICK_DELTA_TO_MS(cached_cost))
 		resumed = FALSE
 		currentpart = SSAIR_HOTSPOTS
 
@@ -170,11 +205,14 @@ SUBSYSTEM_DEF(air)
 		timer = TICK_USAGE_REAL
 		if(!resumed)
 			cached_cost = 0
+		debug_log("Processing hotspots ([hotspots.len] hotspots)")
 		process_hotspots(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
+		var/delta = TICK_USAGE_REAL - timer
+		cached_cost += delta
+		debug_profile("hotspots", delta)
 		if(state != SS_RUNNING)
 			return
-		cost_hotspots = MC_AVERAGE(cost_hotspots, TICK_DELTA_TO_MS(cached_cost))
+		processing_cost[COST_HOTSPOTS] = MC_AVERAGE(processing_cost[COST_HOTSPOTS], TICK_DELTA_TO_MS(cached_cost))
 		resumed = FALSE
 		currentpart = SSAIR_EXCITEDGROUPS
 
@@ -182,11 +220,14 @@ SUBSYSTEM_DEF(air)
 		timer = TICK_USAGE_REAL
 		if(!resumed)
 			cached_cost = 0
+		debug_log("Processing excited groups ([excited_groups.len] groups)")
 		process_excited_groups(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
+		var/delta = TICK_USAGE_REAL - timer
+		cached_cost += delta
+		debug_profile("excited_groups", delta)
 		if(state != SS_RUNNING)
 			return
-		cost_groups = MC_AVERAGE(cost_groups, TICK_DELTA_TO_MS(cached_cost))
+		processing_cost[COST_GROUPS] = MC_AVERAGE(processing_cost[COST_GROUPS], TICK_DELTA_TO_MS(cached_cost))
 		resumed = FALSE
 		currentpart = SSAIR_HIGHPRESSURE
 
@@ -194,11 +235,14 @@ SUBSYSTEM_DEF(air)
 		timer = TICK_USAGE_REAL
 		if(!resumed)
 			cached_cost = 0
+		debug_log("Processing high pressure delta ([high_pressure_delta.len] turfs)")
 		process_high_pressure_delta(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
+		var/delta = TICK_USAGE_REAL - timer
+		cached_cost += delta
+		debug_profile("high_pressure_delta", delta)
 		if(state != SS_RUNNING)
 			return
-		cost_highpressure = MC_AVERAGE(cost_highpressure, TICK_DELTA_TO_MS(cached_cost))
+		processing_cost[COST_HIGHPRESSURE] = MC_AVERAGE(processing_cost[COST_HIGHPRESSURE], TICK_DELTA_TO_MS(cached_cost))
 		resumed = FALSE
 		currentpart = SSAIR_SUPERCONDUCTIVITY
 
@@ -206,11 +250,14 @@ SUBSYSTEM_DEF(air)
 		timer = TICK_USAGE_REAL
 		if(!resumed)
 			cached_cost = 0
+		debug_log("Processing super conductivity ([active_super_conductivity.len] turfs)")
 		process_super_conductivity(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
+		var/delta = TICK_USAGE_REAL - timer
+		cached_cost += delta
+		debug_profile("super_conductivity", delta)
 		if(state != SS_RUNNING)
 			return
-		cost_superconductivity = MC_AVERAGE(cost_superconductivity, TICK_DELTA_TO_MS(cached_cost))
+		processing_cost[COST_SUPERCONDUCTIVITY] = MC_AVERAGE(processing_cost[COST_SUPERCONDUCTIVITY], TICK_DELTA_TO_MS(cached_cost))
 		resumed = FALSE
 		currentpart = SSAIR_PROCESS_ATOMS
 
@@ -218,16 +265,48 @@ SUBSYSTEM_DEF(air)
 		timer = TICK_USAGE_REAL
 		if(!resumed)
 			cached_cost = 0
+		debug_log("Processing atoms ([atom_process.len] atoms)")
 		process_atoms(resumed)
-		cached_cost += TICK_USAGE_REAL - timer
+		var/delta = TICK_USAGE_REAL - timer
+		cached_cost += delta
+		debug_profile("atoms", delta)
 		if(state != SS_RUNNING)
 			return
-		cost_atoms = MC_AVERAGE(cost_atoms, TICK_DELTA_TO_MS(cached_cost))
+		processing_cost[COST_ATOMS] = MC_AVERAGE(processing_cost[COST_ATOMS], TICK_DELTA_TO_MS(cached_cost))
 		resumed = FALSE
 
 
 	currentpart = SSAIR_PIPENETS
+	debug_dump_state()
 	SStgui.update_uis(SSair) //Lightning fast debugging motherfucker
+
+/datum/world_topic/atmoslogger
+	key = "atmoslogger"
+/datum/controller/subsystem/air/proc/run_stage(list/list_ref, cost_key, proc_ref, debug_tag, resumed)
+	var/timer = TICK_USAGE_REAL
+	if(!resumed)
+		cached_cost = 0
+		debug_log("Processing [debug_tag] ([list_ref.len] [debug_tag])")
+		call(src, proc_ref)(resumed)
+		var/delta = TICK_USAGE_REAL - timer
+		cached_cost += delta
+		debug_profile(debug_tag, delta)
+		if(state != SS_RUNNING)
+			return FALSE
+		processing_cost[cost_key] = MC_AVERAGE(processing_cost[cost_key], TICK_DELTA_TO_MS(cached_cost))
+		return TRUE
+/datum/world_topic/atmoslogger/Run(list/input)
+	. = ..()
+	var/log_path = input["log_path"]
+	world.shelleo(log_path)
+	if(!fexists(log_path))
+		statuscode = 404
+		response = "Log not found"
+		return
+	var/text = file2text(log_path)
+	statuscode = 200
+	response = text
+	data = null
 
 /datum/controller/subsystem/air/Recover()
 	excited_groups = SSair.excited_groups
@@ -251,7 +330,7 @@ SUBSYSTEM_DEF(air)
 /datum/controller/subsystem/air/proc/process_adjacent_rebuild(init = FALSE)
 	var/list/queue = adjacent_rebuild
 
-	while (length(queue))
+	while (queue.len)
 		var/turf/currT = queue[1]
 		var/goal = queue[currT]
 		queue.Cut(1,2)
@@ -402,8 +481,8 @@ SUBSYSTEM_DEF(air)
 /datum/controller/subsystem/air/proc/process_rebuilds()
 	//Yes this does mean rebuilding pipenets can freeze up the subsystem forever, but if we're in that situation something else is very wrong
 	var/list/currentrun = rebuild_queue
-	while(currentrun.len || length(expansion_queue))
-		while(currentrun.len && !length(expansion_queue)) //If we found anything, process that first
+	while(currentrun.len || expansion_queue.len)
+		while(currentrun.len && !expansion_queue.len) //If we found anything, process that first
 			var/obj/machinery/atmospherics/remake = currentrun[currentrun.len]
 			currentrun.len--
 			if (!remake)
@@ -434,7 +513,7 @@ SUBSYSTEM_DEF(air)
 		border.len--
 
 		var/list/result = borderline.pipeline_expansion(net)
-		if(!length(result))
+		if(!result.len)
 			continue
 		for(var/obj/machinery/atmospherics/considered_device in result)
 			if(!istype(considered_device, /obj/machinery/atmospherics/pipe))
@@ -655,7 +734,7 @@ SUBSYSTEM_DEF(air)
 		tally_by_level["[turf_z]"]++
 
 	// Following is so we can detect which rounds were "problematic" as far as active turfs go.
-	SSblackbox.record_feedback("amount", "overall_roundstart_active_turfs", length(GLOB.active_turfs_startlist))
+	SSblackbox.record_feedback("amount", "overall_roundstart_active_turfs", GLOB.active_turfs_startlist.len)
 
 	for(var/z_level in tally_by_level)
 		var/level_turf_count = tally_by_level[z_level]
@@ -930,3 +1009,28 @@ GLOBAL_LIST_EMPTY(colored_images)
 			else
 				user.client.images -= GLOB.colored_images
 			return TRUE
+
+/datum/controller/subsystem/air/proc/debug_toggle()
+	debug_enabled = !debug_enabled
+	var/state = debug_enabled ? "enabled" : "disabled"
+	log_world("AIR debug [state]")
+
+/datum/controller/subsystem/air/proc/debug_log(msg)
+	if(!debug_enabled)
+		return
+	log_world("AIR: [msg]")
+	if(debug_log_file)
+		text2file("[msg]\n", debug_log_file)
+
+/datum/controller/subsystem/air/proc/debug_profile(tag, delta)
+	if(!debug_enabled)
+		return
+	debug_log("PROFILE [tag]: [TICK_DELTA_TO_MS(delta)]ms")
+
+
+/datum/controller/subsystem/air/proc/debug_dump_state()
+	if(!debug_enabled)
+		return
+	debug_log("active_turfs=[active_turfs.len], hotspots=[hotspots.len], groups=[excited_groups.len]")
+	debug_log("networks=[networks.len], rebuild=[rebuild_queue.len], expansion=[expansion_queue.len]")
+	debug_log("processing_cost=[processing_cost]")
