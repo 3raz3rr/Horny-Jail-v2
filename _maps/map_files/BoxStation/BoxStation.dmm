@@ -8993,7 +8993,6 @@
 /turf/open/floor/wood,
 /area/station/service/bar)
 "aOP" = (
-/obj/effect/landmark/blobstart,
 /obj/effect/spawner/random/burgerstation/odd,
 /obj/item/sharpener,
 /turf/open/floor/plating,
@@ -48929,6 +48928,7 @@
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2{
 	dir = 8
 	},
+/obj/structure/cable,
 /turf/open/floor/plating,
 /area/station/maintenance/starboard/fore)
 "miv" = (

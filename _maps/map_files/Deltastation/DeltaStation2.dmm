@@ -12413,8 +12413,11 @@
 /turf/open/floor/iron,
 /area/station/engineering/supermatter/room)
 "cZx" = (
-/turf/closed/wall/r_wall,
-/area/space)
+/obj/structure/lattice,
+/obj/structure/grille,
+/obj/structure/grille,
+/turf/open/space/basic,
+/area/space/nearstation)
 "cZC" = (
 /obj/effect/turf_decal/trimline/purple/filled/line{
 	dir = 4
@@ -29497,6 +29500,13 @@
 /obj/effect/decal/cleanable/dirt,
 /turf/open/floor/iron,
 /area/station/maintenance/disposal/incinerator)
+"hjB" = (
+/obj/structure/table/glass/plasmaglass,
+/obj/machinery/chem_dispenser/drinks{
+	dir = 8
+	},
+/turf/open/floor/carpet/neon/simple/red,
+/area/station/common/night_club)
 "hjF" = (
 /obj/effect/turf_decal/tile/yellow/fourcorners,
 /turf/open/floor/iron,
@@ -44341,7 +44351,6 @@
 /area/station/hallway/secondary/entry)
 "kSc" = (
 /obj/machinery/light/blacklight/directional/north,
-/obj/item/kirbyplants/random,
 /turf/open/floor/carpet/neon/simple/red,
 /area/station/common/night_club)
 "kSt" = (
@@ -70514,6 +70523,9 @@
 /area/station/security/courtroom)
 "rrL" = (
 /obj/structure/table/glass/plasmaglass,
+/obj/machinery/chem_dispenser/drinks/beer{
+	dir = 8
+	},
 /turf/open/floor/carpet/neon/simple/red,
 /area/station/common/night_club)
 "rrU" = (
@@ -82360,7 +82372,7 @@
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /obj/machinery/duct,
-/turf/closed/wall,
+/turf/open/floor/plating,
 /area/station/medical/abandoned)
 "ukj" = (
 /obj/structure/disposalpipe/segment{
@@ -152771,8 +152783,8 @@ pWe
 vHA
 pWe
 fHG
-cZx
-udt
+bLx
+qYo
 aaa
 aaa
 aaa
@@ -153028,7 +153040,7 @@ pWe
 dHy
 pWe
 qYo
-udt
+qYo
 qhQ
 aaa
 aaa
@@ -153797,8 +153809,8 @@ jGW
 ybr
 qYo
 sKy
-udt
-udt
+qYo
+qYo
 vNa
 qhQ
 aaa
@@ -154054,7 +154066,7 @@ eIQ
 ybr
 qYo
 sKy
-udt
+qYo
 aaa
 aaa
 aaa
@@ -154311,7 +154323,7 @@ wpH
 ybr
 qYo
 sKy
-udt
+qYo
 aaa
 aaa
 aaa
@@ -154564,11 +154576,11 @@ kUH
 awi
 mva
 mUL
-hDU
+wpH
 ybr
 qYo
 sKy
-udt
+qYo
 aaa
 aaa
 aaa
@@ -154821,11 +154833,11 @@ tEq
 awi
 kSc
 mUL
-cfk
+xPq
 aUN
 qYo
 sKy
-udt
+qYo
 aaa
 aaa
 aaa
@@ -155076,13 +155088,13 @@ hhP
 ljm
 smG
 awi
+hjB
 rrL
-rrL
-xPq
+cfk
 aUN
 qYo
 sKy
-udt
+qYo
 udt
 aaa
 aaa
@@ -155339,7 +155351,7 @@ aUN
 ybr
 qYo
 sKy
-mnc
+vVc
 mnc
 mnc
 mnc
@@ -155595,8 +155607,8 @@ qYo
 qYo
 qYo
 qYo
-udt
-aaa
+qYo
+sHt
 aaa
 aaa
 aaa
@@ -157388,7 +157400,7 @@ eQc
 fpn
 ybr
 qYo
-aaa
+qYo
 aaa
 aaa
 aaa
@@ -157645,7 +157657,7 @@ gkA
 kOR
 ybr
 uHd
-aaa
+qYo
 aaa
 aaa
 aaa
@@ -157902,7 +157914,7 @@ wZV
 wZV
 ybr
 uHd
-aaa
+qYo
 aaa
 aaa
 aaa
@@ -158149,17 +158161,17 @@ qYo
 qYo
 qYo
 aad
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
+qYo
+qYo
+uHd
+qYo
+uHd
+uHd
+qYo
+qYo
+qYo
+qYo
+uHd
 aaa
 aaa
 aaa
@@ -158405,18 +158417,18 @@ aaa
 efQ
 efQ
 qYo
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
-aaa
+qYo
+cZx
+uHd
+qYo
+uHd
+qYo
+qYo
+uHd
+uHd
+uHd
+qYo
+uHd
 aaa
 aaa
 aaa
